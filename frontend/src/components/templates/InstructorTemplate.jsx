@@ -167,7 +167,7 @@ export function InstructorTemplate() {
         <Table>
           <TableHead>
             <TableRow>
-              <TableHeader>Nombre</TableHeader>
+              <TableHeader>Nombre de la ficha</TableHeader>
               <TableHeader>Acciones</TableHeader>
             </TableRow>
           </TableHead>
@@ -259,7 +259,7 @@ function FichaForm({ ficha, onSave, onCancel }) {
   return (
     <Form onSubmit={handleSubmit}>
       <FormGroup>
-        <Label>Nombre:</Label>
+        <Label>Nombre de Ficha:</Label>
         <Input
           type="text"
           value={nombre}
