@@ -70,20 +70,20 @@ model Municipios {
   Personas   Personas[]
 }
 
-model Personas {
-  id_persona     Int      @id @default(autoincrement())
-  identificacion Int      @unique
-  nombres        String
-  correo         String
-  telefono       String
-  password       String
-  rol            Rol
-  cargo          Cargo
-  municipio      Int
+  model Personas {
+    id_persona     Int      @id @default(autoincrement())
+    identificacion Int      @unique
+    nombres        String
+    correo         String
+    telefono       String
+    password       String
+    rol            Rol
+    cargo          Cargo
+    municipio      Int
 
-  Municipios Municipios @relation(fields: [municipio], references: [id_municipio])
-  Vinculacion Vinculacion[]
-}
+    Municipios Municipios @relation(fields: [municipio], references: [id_municipio])
+    Vinculacion Vinculacion[]
+  }
 
 model Programas {
   id_programa   Int      @id @default(autoincrement())

@@ -3,6 +3,10 @@ import axiosCliente from "../axioCliente.js";
 import styled from "styled-components";
 import Modal from "react-modal";
 
+const SEDE_OPTIONS = [
+  { value: "centro", label: "Centro" },
+  { value: "Yamboro", label: "Yamboró" },
+];
 // Estilos
 const Container = styled.div`
   max-width: 900px;
@@ -65,18 +69,20 @@ const AmbienteButton = styled.button`
   padding: 12px 24px;
   font-size: 1em;
   color: #fff;
-  background-color: #4682b4; /* Azul claro */
+  background-color: ${(props) => (props.delete ? "#ff4d4d" : "#4682b4")}; /* Rojo para eliminar, azul para otros */
   border: none;
   border-radius: 8px;
   cursor: pointer;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 
   &:hover {
-    background-color: #4169e1; /* Azul más oscuro */
+    background-color: ${(props) =>
+      props.delete ? "#e60000" : "#4169e1"}; /* Rojo oscuro para eliminar, azul oscuro para otros */
   }
 
   &:active {
-    background-color: #3742fa; /* Azul más oscuro */
+    background-color: ${(props) =>
+      props.delete ? "#cc0000" : "#3742fa"}; /* Rojo más oscuro para eliminar, azul más oscuro para otros */
   }
 `;
 
@@ -127,16 +133,19 @@ export function AmbienteTemplate() {
   const [newAmbiente, setNewAmbiente] = useState({
     nombre_amb: "",
     municipio: "",
+    sede: "", // Agregado
     estado: "activo"
   });
   const [token] = useState(""); // Asegúrate de que este valor esté proporcionado correctamente
   const [municipios, setMunicipios] = useState([]);
+  const [sedes, setSedes] = useState([]); // Agregado
   const [selectedAmbientes, setSelectedAmbientes] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentAmbiente, setCurrentAmbiente] = useState(null);
   const [updateAmbiente, setUpdateAmbiente] = useState({
     nombre_amb: "",
     municipio: "",
+    sede: "", // Agregado
     estado: "activo"
   });
 
@@ -155,6 +164,12 @@ export function AmbienteTemplate() {
           headers: { Authorization: `Bearer ${token}` }
         });
         setMunicipios(municipiosResponse.data.datos);
+
+        // Obtener sedes
+        const sedesResponse = await axiosCliente.get("http://localhost:3000/api/sedes", {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setSedes(sedesResponse.data.datos);
       } catch (error) {
         console.error("Error al obtener datos:", error);
       }
@@ -175,10 +190,11 @@ export function AmbienteTemplate() {
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      setAmbientes([...ambientes, response.data]);
+      setAmbientes([...ambientes, response.data.datos]);
       setNewAmbiente({
         nombre_amb: "",
         municipio: "",
+        sede: "", // Agregado
         estado: "activo"
       });
     } catch (error) {
@@ -205,7 +221,8 @@ export function AmbienteTemplate() {
       setCurrentAmbiente(null);
       setUpdateAmbiente({
         nombre_amb: "",
-        Municipio: "",
+        municipio: "",
+        sede: "", // Agregado
         estado: "activo"
       });
     } catch (error) {
@@ -239,6 +256,7 @@ export function AmbienteTemplate() {
     setUpdateAmbiente({
       nombre_amb: ambiente.nombre_amb,
       municipio: ambiente.municipio.id_municipio,
+      sede: ambiente.sede, // Agregado
       estado: ambiente.estado
     });
     setIsModalOpen(true);
@@ -250,6 +268,7 @@ export function AmbienteTemplate() {
     setUpdateAmbiente({
       nombre_amb: "",
       municipio: "",
+      sede: "", // Agregado
       estado: "activo"
     });
   };
@@ -261,7 +280,7 @@ export function AmbienteTemplate() {
         <AmbienteInput
           type="text"
           placeholder="Nombre del Ambiente"
-          value={newAmbiente.nombre_amb}
+          value={newAmbiente.id_ambiente}
           onChange={(e) => setNewAmbiente({ ...newAmbiente, nombre_amb: e.target.value })}
         />
         <AmbienteSelect
@@ -275,6 +294,17 @@ export function AmbienteTemplate() {
             </option>
           ))}
         </AmbienteSelect>
+        <AmbienteSelect
+          value={newAmbiente.sede} // Agregado
+          onChange={(e) => setNewAmbiente({ ...newAmbiente, sede: e.target.value })}
+        >
+      <option value="">Seleccionar Sede</option>
+        {SEDE_OPTIONS.map((sede) => (
+          <option key={sede.value} value={sede.value}>
+            {sede.label}
+          </option>
+        ))}
+        </AmbienteSelect>
         <AmbienteButton type="submit">Añadir Ambiente</AmbienteButton>
       </AmbienteForm>
       <Table>
@@ -282,6 +312,7 @@ export function AmbienteTemplate() {
           <tr>
             <TableHeader>Nombre</TableHeader>
             <TableHeader>Municipio</TableHeader>
+            <TableHeader>Sede</TableHeader> {/* Agregado */}
             <TableHeader>Estado</TableHeader>
             <TableHeader>Acciones</TableHeader>
           </tr>
@@ -291,11 +322,12 @@ export function AmbienteTemplate() {
             <TableRow key={ambiente.id_ambiente}>
               <TableCell>{ambiente.nombre_amb}</TableCell>
               <TableCell>{ambiente.Municipio.nombre_mpio}</TableCell>
+              <TableCell>{ambiente.sede.nombre_sede}</TableCell> {/* Agregado */}
               <TableCell>{ambiente.estado}</TableCell>
               <TableCell>
                 <ButtonGroup>
                   <AmbienteButton onClick={() => openModal(ambiente)}>Editar</AmbienteButton>
-                  <AmbienteButton onClick={() => handleDeleteAmbiente(ambiente.id_ambiente)}>
+                  <AmbienteButton delete onClick={() => handleDeleteAmbiente(ambiente.id_ambiente)}>
                     Eliminar
                   </AmbienteButton>
                 </ButtonGroup>
@@ -304,6 +336,52 @@ export function AmbienteTemplate() {
           ))}
         </tbody>
       </Table>
+      <Modal isOpen={isModalOpen} onRequestClose={closeModal}>
+        <Container>
+          <Title>Actualizar Ambiente</Title>
+          <AmbienteForm
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleUpdateAmbiente();
+            }}
+          >
+            <AmbienteInput
+              type="text"
+              placeholder="Nombre del Ambiente"
+              value={updateAmbiente.nombre_amb}
+              onChange={(e) => setUpdateAmbiente({ ...updateAmbiente, nombre_amb: e.target.value })}
+            />
+            <AmbienteSelect
+              value={updateAmbiente.municipio}
+              onChange={(e) => setUpdateAmbiente({ ...updateAmbiente, municipio: e.target.value })}
+            >
+              <option value="">Seleccionar Municipio</option>
+              {municipios.map((municipio) => (
+                <option key={municipio.id_municipio} value={municipio.id_municipio}>
+                  {municipio.nombre_mpio}
+                </option>
+              ))}
+            </AmbienteSelect>
+            <AmbienteSelect
+              value={updateAmbiente.sede} // Agregado
+              onChange={(e) => setUpdateAmbiente({ ...updateAmbiente, sede: e.target.value })}
+            >
+              <option value="">Seleccionar Sede</option>
+              {sedes.map((sede) => (
+                <option key={sede.id_sede} value={sede.id_sede}>
+                  {sede.nombre_sede}
+                </option>
+              ))}
+            </AmbienteSelect>
+            <ButtonGroup>
+              <AmbienteButton type="submit">Actualizar</AmbienteButton>
+              <AmbienteButton delete onClick={closeModal}>
+                Cancelar
+              </AmbienteButton>
+            </ButtonGroup>
+          </AmbienteForm>
+        </Container>
+      </Modal>
     </Container>
   );
 }

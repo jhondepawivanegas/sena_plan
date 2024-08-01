@@ -1,56 +1,45 @@
-import prisma from '../../../lib/prisma';
+import prisma from "@/lib/prisma";
+import { NextResponse } from "next/server";
 
-export default async function handler(req, res) {
-  if (req.method === 'GET') {
-    try {
-      const horarios = await prisma.horarios.findMany({
-        include: {
-          Fichas: true,
-          Ambientes: true,
-          Vinculacion: true,
-        },
-      });
-      res.status(200).json(horarios);
-    } catch (error) {
-      res.status(500).json({ error: 'Error al obtener horarios' });
-    }
-  } else if (req.method === 'POST') {
-    const { fecha_inicio, hora_inicio, fecha_fin, hora_fin, dia, cantidad_horas, instructor, ficha, ambiente } = req.body;
-    
-    // Verificar si el instructor ya está asignado a la misma ficha en el mismo bloque
-    const existingSchedule = await prisma.horarios.findFirst({
-      where: {
-        ficha: ficha,
-        dia: dia,
-        hora_inicio: hora_inicio,
-        instructor: instructor,
+const handleErrors = (error) => {
+  return new NextResponse(error.message, { status: 500 });
+};
+
+export async function GET() {
+  try {
+    const horarios = await prisma.horarios.findMany({
+      include: {
+        Fichas: true, // Relación con Fichas
+        Ambientes: true, // Relación con Ambientes
       },
     });
+    return NextResponse.json({ datos: horarios }, { status: 200 });
+  } catch (error) {
+    return handleErrors(error);
+  }
+}
 
-    if (existingSchedule) {
-      return res.status(400).json({ error: 'El instructor ya está asignado a la misma ficha en el mismo bloque.' });
-    }
-
-    try {
-      const newHorario = await prisma.horarios.create({
-        data: {
-          fecha_inicio,
-          hora_inicio,
-          fecha_fin,
-          hora_fin,
-          dia,
-          cantidad_horas,
-          instructor,
-          ficha,
-          ambiente,
-        },
-      });
-      res.status(201).json(newHorario);
-    } catch (error) {
-      res.status(500).json({ error: 'Error al añadir horario' });
-    }
-  } else {
-    res.setHeader('Allow', ['GET', 'POST']);
-    res.status(405).end(`Method ${req.method} Not Allowed`);
+export async function POST(request) {
+  try {
+    const data = await request.json();
+    const horario = await prisma.horarios.create({
+      data: {
+        fecha_inicio: data.fecha_inicio,
+        hora_inicio: data.hora_inicio,
+        fecha_fin: data.fecha_fin,
+        hora_fin: data.hora_fin,
+        dia: data.dia,
+        cantidad_horas: data.cantidad_horas,
+        instructor: data.instructor,
+        ficha: data.ficha,
+        ambiente: data.ambiente,
+      },
+    });
+    return new NextResponse(JSON.stringify(horario), {
+      headers: { "Content-Type": "application/json" },
+      status: 201,
+    });
+  } catch (error) {
+    return handleErrors(error);
   }
 }
