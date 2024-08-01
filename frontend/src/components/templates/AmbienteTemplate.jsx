@@ -356,8 +356,8 @@ export function AmbienteTemplate() {
           {ambientes.map((ambiente) => (
             <TableRow key={ambiente.id_ambiente}>
               <TableCell>{ambiente.nombre_amb}</TableCell>
-              <TableCell>{municipios.find(m => m.id_municipio === ambiente.municipio)?.nombre_mpio }</TableCell>
-              <TableCell>{SEDE_OPTIONS.find(s => s.value === ambiente.sede)?.label }</TableCell>
+              <TableCell>{ambiente.Municipio.nombre_mpio}</TableCell>
+              <TableCell>{SEDE_OPTIONS.find(s => s.value === ambiente.sede)?.label}</TableCell>
               <TableCell>
                 <ToggleSwitch>
                   <ToggleInput
