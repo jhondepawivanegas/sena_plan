@@ -19,7 +19,6 @@ export function Sidebar({ state, setState }) {
           <div className="imgcontent">
             <img src={v.logo} alt="Logo" />
           </div>
-          <h2>Time</h2>
         </div>
         {LinksArray.map(({ icon, label, to }) => (
           <LinkContainer key={label}>
@@ -94,7 +93,7 @@ const Container = styled.div`
       transition: 0.3s ease-in-out;
       cursor: pointer;
       img {
-        width: ${({ $isopen }) => ($isopen === "true" ? "120px" : "50px")}; /* Ajusta el tamaño aquí */
+        width: ${({ $isopen }) => ($isopen === "true" ? "100px" : "40px")}; /* Ajusta el tamaño aquí */
         height: auto;
         transition: width 0.3s ease-in-out;
         animation: flotar 1.7s ease-in-out infinite alternate;

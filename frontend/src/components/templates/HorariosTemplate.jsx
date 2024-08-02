@@ -2,9 +2,9 @@ import styled from "styled-components";
 import { useState, useEffect } from "react";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTrashAlt, faArrowLeft, faEdit } from '@fortawesome/free-solid-svg-icons';
-import axios from "axios";
+import axiosCliente from "../axioCliente.js";
 
-// Datos iniciales
+// Datos iniciales (puedes obtenerlos desde la API si es necesario)
 const initialInstructors = [
   { id: 1, name: "Wilson Martinez" },
   { id: 2, name: "Jose Ordoney" },
@@ -19,10 +19,9 @@ const initialRooms = [
 
 const initialBlocks = [
   { name: "Mañana", start: "07:00", end: "12:00" },
-  { name: "Tarde", start: "12:0", end: "17:00" },
+  { name: "Tarde", start: "12:00", end: "17:00" },
   { name: "Noche", start: "18:00", end: "22:00" },
-  { name: "Jornada Completa", start: "18:00", end: "22:00" },
-
+  { name: "Jornada Completa", start: "07:00", end: "22:00" },
 ];
 
 const daysOfWeek = [
@@ -39,8 +38,8 @@ const convertToColombianTime = (time) => {
 };
 
 export function HorariosTemplate() {
-  const [instructors, setInstructors] = useState(initialInstructors);
-  const [rooms, setRooms] = useState(initialRooms);
+  const [instructors, setInstructors] = useState([]);
+  const [rooms, setRooms] = useState([]);
   const [blocks, setBlocks] = useState(initialBlocks);
   const [schedule, setSchedule] = useState([]);
   const [selectedInstructor, setSelectedInstructor] = useState('');
@@ -53,6 +52,26 @@ export function HorariosTemplate() {
   const [error, setError] = useState('');
 
   useEffect(() => {
+    // Cargar instructores y ambientes desde la API
+    const fetchInitialData = async () => {
+      try {
+        const instructorsResponse = await axiosCliente.get('/instructors');
+        setInstructors(instructorsResponse.data);
+
+        const roomsResponse = await axiosCliente.get('/rooms');
+        setRooms(roomsResponse.data);
+
+        const scheduleResponse = await axiosCliente.get('/schedule');
+        setSchedule(scheduleResponse.data);
+      } catch (error) {
+        setError('Error al cargar los datos iniciales.');
+      }
+    };
+
+    fetchInitialData();
+  }, []);
+
+  useEffect(() => {
     if (selectedBlock) {
       const block = blocks.find(b => b.name === selectedBlock);
       if (block) {
@@ -62,7 +81,7 @@ export function HorariosTemplate() {
     }
   }, [selectedBlock]);
 
-  const handleAddSchedule = () => {
+  const handleAddSchedule = async () => {
     if (!selectedInstructor || !selectedRoom || !selectedBlock || !startTime || !endTime || !selectedDay) {
       setError("Por favor, complete todos los campos.");
       return;
@@ -79,76 +98,46 @@ export function HorariosTemplate() {
       return;
     }
 
-    if (editIndex !== null) {
-      const updatedSchedule = schedule.map((item, index) =>
-        index === editIndex
-          ? { instructor: selectedInstructor, room: selectedRoom, block: selectedBlock, day: selectedDay, startTime, endTime }
-          : item
-      );
-      setSchedule(updatedSchedule);
-      setRooms(rooms.map(room =>
-        room.name === selectedRoom
-          ? { ...room, occupied: true }
-          : room
-      ));
-      setEditIndex(null);
-      setError('');
-    } else {
-      const conflict = schedule.some(
-        (item) =>
-          item.instructor === selectedInstructor &&
-          item.room === selectedRoom &&
-          item.block === selectedBlock &&
-          item.day === selectedDay &&
-          (
-            (startTime >= item.startTime && startTime < item.endTime) ||
-            (endTime > item.startTime && endTime <= item.endTime)
-          )
-      );
+    const newSchedule = {
+      instructor: parseInt(selectedInstructor),
+      room: parseInt(selectedRoom),
+      block: selectedBlock,
+      day: selectedDay,
+      startTime,
+      endTime,
+      cantidad_horas: calculateHours(startTime, endTime),
+    };
 
-      if (conflict) {
-        setError("El instructor ya está asignado a una sala en este bloque y horario.");
-        return;
+    try {
+      if (editIndex !== null) {
+        await axiosCliente.put(`/schedule/${schedule[editIndex].id_horario}`, newSchedule);
+        const updatedSchedule = schedule.map((item, index) =>
+          index === editIndex ? { ...item, ...newSchedule } : item
+        );
+        setSchedule(updatedSchedule);
+        setEditIndex(null);
+      } else {
+        const response = await axiosCliente.post('/schedule', newSchedule);
+        setSchedule([...schedule, response.data]);
       }
 
-      const blockConflict = schedule.some(
-        (item) =>
-          item.room === selectedRoom &&
-          item.block === selectedBlock &&
-          item.day === selectedDay &&
-          (
-            (startTime >= item.startTime && startTime < item.endTime) ||
-            (endTime > item.startTime && endTime <= item.endTime)
-          )
-      );
-
-      if (blockConflict) {
-        setError("Este bloque ya está asignado a otra sala en el horario seleccionado.");
-        return;
-      }
-
-      setSchedule([
-        ...schedule,
-        {
-          instructor: selectedInstructor,
-          room: selectedRoom,
-          block: selectedBlock,
-          day: selectedDay,
-          startTime,
-          endTime,
-        },
-      ]);
-
       setRooms(rooms.map(room =>
-        room.name === selectedRoom ? { ...room, occupied: true } : room
+        room.id === parseInt(selectedRoom) ? { ...room, occupied: true } : room
       ));
-
       setError('');
+    } catch (error) {
+      setError('Error al agregar o actualizar el horario.');
     }
   };
 
-  const handleVacateRoomEarly = (roomName) => {
-    const roomSchedules = schedule.filter(item => item.room === roomName);
+  const calculateHours = (start, end) => {
+    const startHour = parseInt(start.split(":")[0]);
+    const endHour = parseInt(end.split(":")[0]);
+    return endHour - startHour;
+  };
+
+  const handleVacateRoomEarly = (roomId) => {
+    const roomSchedules = schedule.filter(item => item.room === roomId);
     const earliestSchedule = roomSchedules.reduce((earliest, current) =>
       !earliest || new Date(current.startTime) < new Date(earliest.startTime)
         ? current
@@ -157,27 +146,33 @@ export function HorariosTemplate() {
 
     if (earliestSchedule) {
       setRooms(rooms.map(room =>
-        room.name === roomName ? { ...room, occupied: false } : room
+        room.id === roomId ? { ...room, occupied: false } : room
       ));
       setSchedule(schedule.filter(item => item !== earliestSchedule));
     }
   };
 
-  const handleRemoveSchedule = (index) => {
+  const handleRemoveSchedule = async (index) => {
     const item = schedule[index];
-    setRooms(rooms.map(room =>
-      room.name === item.room ? { ...room, occupied: false } : room
-    ));
-    setSchedule(schedule.filter((_, i) => i !== index));
+    try {
+      await axiosCliente.delete(`/schedule/${item.id_horario}`);
+      setRooms(rooms.map(room =>
+        room.id === item.room ? { ...room, occupied: false } : room
+      ));
+      setSchedule(schedule.filter((_, i) => i !== index));
+    } catch (error) {
+      setError('Error al eliminar el horario.');
+    }
   };
 
   const handleEditSchedule = (index) => {
-    setSelectedInstructor(schedule[index].instructor);
-    setSelectedRoom(schedule[index].room);
-    setSelectedBlock(schedule[index].block);
-    setSelectedDay(schedule[index].day);
-    setStartTime(schedule[index].startTime);
-    setEndTime(schedule[index].endTime);
+    const item = schedule[index];
+    setSelectedInstructor(item.instructor.toString());
+    setSelectedRoom(item.room.toString());
+    setSelectedBlock(item.block);
+    setSelectedDay(item.day);
+    setStartTime(item.startTime);
+    setEndTime(item.endTime);
     setEditIndex(index);
   };
 
@@ -188,7 +183,7 @@ export function HorariosTemplate() {
         <Select onChange={(e) => setSelectedInstructor(e.target.value)} value={selectedInstructor}>
           <option value="">Seleccionar Instructor</option>
           {instructors.map((instructor) => (
-            <option key={instructor.id} value={instructor.name}>
+            <option key={instructor.id} value={instructor.id}>
               {instructor.name}
             </option>
           ))}
@@ -196,7 +191,7 @@ export function HorariosTemplate() {
         <Select onChange={(e) => setSelectedRoom(e.target.value)} value={selectedRoom}>
           <option value="">Seleccionar Ambiente</option>
           {rooms.map((room) => (
-            <option key={room.id} value={room.name} disabled={room.occupied}>
+            <option key={room.id} value={room.id} disabled={room.occupied}>
               {room.name} {room.occupied ? "(Ocupado)" : ""}
             </option>
           ))}
@@ -249,8 +244,8 @@ export function HorariosTemplate() {
         <TableBody>
           {schedule.map((item, index) => (
             <TableRow key={index}>
-              <TableCell>{item.instructor}</TableCell>
-              <TableCell>{item.room}</TableCell>
+              <TableCell>{instructors.find(instructor => instructor.id === item.instructor)?.name}</TableCell>
+              <TableCell>{rooms.find(room => room.id === item.room)?.name}</TableCell>
               <TableCell>{item.block}</TableCell>
               <TableCell>{item.day}</TableCell>
               <TableCell>{convertToColombianTime(item.startTime)}</TableCell>

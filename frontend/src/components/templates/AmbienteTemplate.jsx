@@ -78,6 +78,7 @@ const AmbienteButton = styled.button`
   border-radius: 8px;
   cursor: pointer;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  transition: background-color 0.3s ease-in-out;
 
   &:hover {
     background-color: ${(props) =>
@@ -143,7 +144,7 @@ const ToggleSlider = styled.span`
   background-color: ${(props) =>
     props.checked
       ? "#4caf50"
-      : "#ff0000"}; /* Verde para activo, gris para inactivo */
+      : "#ff0000"}; /* Verde para activo, rojo para inactivo */
   border-radius: 34px;
   transition: background-color 0.4s;
   &::before {
@@ -180,6 +181,13 @@ const ModalButtonGroup = styled.div`
   margin-top: 20px;
 `;
 
+const ErrorMessage = styled.div`
+  color: #ff0000;
+  font-size: 0.9em;
+  margin-top: -10px;
+  margin-bottom: 10px;
+`;
+
 // Configuración de Modal
 Modal.setAppElement("#root");
 
@@ -202,16 +210,12 @@ export function AmbienteTemplate() {
     sede: "",
     estado: "activo",
   });
+  const [error, setError] = useState("");
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         // Obtener ambientes
-        // const ambientesResponse = await axiosCliente.get(
-        //   "http://localhost:3000/api/ambientes",
-        //   { headers: { Authorization: `Bearer ${token}` } }
-        // );
-        // setAmbientes(ambientesResponse.data.datos);
         listarAmbientes();
 
         // Obtener municipios
@@ -228,38 +232,44 @@ export function AmbienteTemplate() {
     fetchData();
   }, [token]);
 
-  // Funncion listar ambientes para reutilizar
+  // Función listar ambientes para reutilizar
   const listarAmbientes = async () => {
-    const ambientesResponse = await axiosCliente.get(
-      "http://localhost:3000/api/ambientes",
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-    setAmbientes(ambientesResponse.data.datos);
+    try {
+      const ambientesResponse = await axiosCliente.get(
+        "http://localhost:3000/api/ambientes",
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setAmbientes(ambientesResponse.data.datos);
+    } catch (error) {
+      console.error("Error al listar ambientes:", error);
+    }
   };
 
   const handleCreateAmbiente = async (event) => {
     event.preventDefault();
     if (newAmbiente.nombre_amb.trim() === "") {
+      setError("El nombre del ambiente es requerido.");
       return;
     }
     try {
-      console.log(newAmbiente);
-      const response = await axiosCliente.post(
+      await axiosCliente.post(
         "http://localhost:3000/api/ambientes",
         newAmbiente,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      // Llama la peticion de listar ambientes nuevamente
+      // Llama la petición de listar ambientes nuevamente
       listarAmbientes();
 
-      // setAmbientes([...ambientes, response.data.datos]);
-      // setNewAmbiente({
-      //   nombre_amb: "",
-      //   municipio: "",
-      //   sede: "",
-      //   estado: "activo",
-      // });
+      // Limpiar el formulario
+      setNewAmbiente({
+        nombre_amb: "",
+        municipio: "",
+        sede: "",
+        estado: "activo",
+      });
+
+      setError("");
     } catch (error) {
       console.error("Error al crear ambiente:", error);
     }
@@ -267,6 +277,7 @@ export function AmbienteTemplate() {
 
   const handleUpdateAmbiente = async () => {
     if (updateAmbiente.nombre_amb.trim() === "") {
+      setError("El nombre del ambiente es requerido.");
       return;
     }
     try {
@@ -290,6 +301,8 @@ export function AmbienteTemplate() {
         sede: "",
         estado: "activo",
       });
+
+      setError("");
     } catch (error) {
       console.error("Error al actualizar ambiente:", error);
     }
@@ -344,12 +357,14 @@ export function AmbienteTemplate() {
             setNewAmbiente({ ...newAmbiente, nombre_amb: e.target.value })
           }
           placeholder="Nombre del Ambiente"
+          aria-label="Nombre del Ambiente"
         />
         <AmbienteSelect
           value={newAmbiente.municipio}
           onChange={(e) =>
             setNewAmbiente({ ...newAmbiente, municipio: e.target.value })
           }
+          aria-label="Municipio"
         >
           <option value="">Seleccionar Municipio</option>
           {municipios.map((municipio) => (
@@ -363,6 +378,7 @@ export function AmbienteTemplate() {
           onChange={(e) =>
             setNewAmbiente({ ...newAmbiente, sede: e.target.value })
           }
+          aria-label="Sede"
         >
           <option value="">Seleccionar Sede</option>
           {SEDE_OPTIONS.map((sede) => (
@@ -373,6 +389,8 @@ export function AmbienteTemplate() {
         </AmbienteSelect>
         <AmbienteButton type="submit">Agregar Ambiente</AmbienteButton>
       </AmbienteForm>
+
+      {error && <ErrorMessage>{error}</ErrorMessage>}
 
       <Table>
         <thead>
@@ -439,6 +457,7 @@ export function AmbienteTemplate() {
               })
             }
             placeholder="Nombre del Ambiente"
+            aria-label="Nombre del Ambiente"
           />
           <AmbienteSelect
             value={updateAmbiente.municipio}
@@ -448,6 +467,7 @@ export function AmbienteTemplate() {
                 municipio: e.target.value,
               })
             }
+            aria-label="Municipio"
           >
             <option value="">Seleccionar Municipio</option>
             {municipios.map((municipio) => (
@@ -464,6 +484,7 @@ export function AmbienteTemplate() {
             onChange={(e) =>
               setUpdateAmbiente({ ...updateAmbiente, sede: e.target.value })
             }
+            aria-label="Sede"
           >
             <option value="">Seleccionar Sede</option>
             {SEDE_OPTIONS.map((sede) => (
@@ -472,6 +493,9 @@ export function AmbienteTemplate() {
               </option>
             ))}
           </AmbienteSelect>
+
+          {error && <ErrorMessage>{error}</ErrorMessage>}
+
           <ModalButtonGroup>
             <AmbienteButton type="button" onClick={handleUpdateAmbiente}>
               Actualizar

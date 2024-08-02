@@ -6,7 +6,7 @@ import { useState, useEffect } from 'react';
 export function HomeTemplate() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [token, setToken] = useState(null);
+  const [token, setToken] = useState(localStorage.getItem('authToken') || null);
   const [error, setError] = useState('');
   const [showLoginForm, setShowLoginForm] = useState(false);
 
@@ -21,17 +21,17 @@ export function HomeTemplate() {
         body: JSON.stringify({ email, password }),
       });
 
-      const data = await response.json();
-
-      if (response.ok) {
-        setToken(data.token);
-        setError('');
-        localStorage.setItem('authToken', data.token);
-      } else {
-        setError(data.message);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Error al iniciar sesión');
       }
+
+      const data = await response.json();
+      setToken(data.token);
+      setError('');
+      localStorage.setItem('authToken', data.token);
     } catch (err) {
-      setError('Error al iniciar sesión');
+      setError(err.message);
     }
   };
 
@@ -78,21 +78,21 @@ export function HomeTemplate() {
             </LoginForm>
           )}
           <Features>
-            <Feature>
-              <Icon><FaCalendarAlt /></Icon>
-              <FeatureTitle>Vista de Calendario</FeatureTitle>
-              <FeatureDescription>Visualiza tus eventos en una vista de calendario clara y moderna.</FeatureDescription>
-            </Feature>
-            <Feature>
-              <Icon><FaRegClock /></Icon>
-              <FeatureTitle>Recordatorios</FeatureTitle>
-              <FeatureDescription>Configura recordatorios para no olvidar tus compromisos importantes.</FeatureDescription>
-            </Feature>
-            <Feature>
-              <Icon><FaRegCalendarCheck /></Icon>
-              <FeatureTitle>Gestión de Tareas</FeatureTitle>
-              <FeatureDescription>Administra tus tareas diarias con una interfaz fácil de usar.</FeatureDescription>
-            </Feature>
+            <Feature
+              icon={<FaCalendarAlt />}
+              title="Vista de Calendario"
+              description="Visualiza tus eventos en una vista de calendario clara y moderna."
+            />
+            <Feature
+              icon={<FaRegClock />}
+              title="Recordatorios"
+              description="Configura recordatorios para no olvidar tus compromisos importantes."
+            />
+            <Feature
+              icon={<FaRegCalendarCheck />}
+              title="Gestión de Tareas"
+              description="Administra tus tareas diarias con una interfaz fácil de usar."
+            />
           </Features>
           <Footer>
             <FooterText>© 2024 Gestor de Calendario. Todos los derechos reservados.</FooterText>
@@ -102,6 +102,15 @@ export function HomeTemplate() {
     </Container>
   );
 }
+
+// Componente para las características
+const Feature = ({ icon, title, description }) => (
+  <FeatureContainer>
+    <Icon>{icon}</Icon>
+    <FeatureTitle>{title}</FeatureTitle>
+    <FeatureDescription>{description}</FeatureDescription>
+  </FeatureContainer>
+);
 
 // Estilos usando styled-components
 const Container = styled.div`
@@ -210,7 +219,7 @@ const Features = styled.div`
   margin: 0 auto;
 `;
 
-const Feature = styled.div`
+const FeatureContainer = styled.div`
   text-align: center;
   max-width: 320px;
   margin: 20px;
