@@ -25,11 +25,13 @@ export async function GET() {
 export async function POST(request) {
   try {
     const data = await request.json();
+    console.log('DATA: ', data.municipio);
     const ambiente = await prisma.ambientes.create({
       data: {
         nombre_amb: data.nombre_amb,
-        municipio: data.municipio,
+        municipio: Number(data.municipio),
         sede: data.sede,
+        estado: "activo"
       },
     });
     return new NextResponse(JSON.stringify(ambiente), {
@@ -37,6 +39,6 @@ export async function POST(request) {
       status: 201,
     });
   } catch (error) {
-    return handleErrors(error);
+    return handleErrors("ERROR INTERNO: " + error);
   }
 }
